@@ -29,7 +29,7 @@ fun LoginScreen() {
             .background(Color.White)
     ) {
 
-        /* 🔰 HEADER VERDE */
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -44,7 +44,7 @@ fun LoginScreen() {
             )
         }
 
-        /* 🧾 FORMULARIO */
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -78,7 +78,7 @@ fun LoginScreen() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            /* 🔽 SELECTOR ALUMNO (solo visual por ahora) */
+
             Button(
                 onClick = { },
                 colors = ButtonDefaults.buttonColors(
@@ -91,7 +91,7 @@ fun LoginScreen() {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            /* 🟢 BOTÓN ENTRAR */
+
             Button(
                 onClick = {
                     viewModel.login(matricula, password) { ok ->

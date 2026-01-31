@@ -32,7 +32,7 @@ class SicenetSoapClient {
         val request = Request.Builder()
             .url("https://sicenet.itsur.edu.mx/ws/wsalumnos.asmx")
             .post(requestBody)
-            // 🔴 HEADERS IMPORTANTES (como el navegador)
+
             .addHeader("Content-Type", "text/xml; charset=utf-8")
             .addHeader("SOAPAction", "http://tempuri.org/accesoLogin")
             .addHeader("User-Agent", "Mozilla/5.0")
@@ -42,7 +42,7 @@ class SicenetSoapClient {
 
         val response = client.newCall(request).execute()
 
-        // 🔹 Guardar cookie de sesión
+
         val cookies = response.headers("Set-Cookie")
         if (cookies.isNotEmpty()) {
             sessionCookie = cookies[0]
@@ -50,7 +50,7 @@ class SicenetSoapClient {
 
         val responseXml = response.body?.string() ?: ""
 
-        // SICENET responde aunque falle, por eso validamos contenido
+
         return responseXml.contains("<accesoLoginResult>")
     }
 
