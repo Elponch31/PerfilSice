@@ -9,4 +9,8 @@ class SicenetRepository {
     fun login(matricula: String, password: String): Boolean {
         return soapClient.login(matricula, password)
     }
+
+    fun getPerfilAcademico(): String {
+        return soapClient.getAlumnoAcademico()
+    }
 }
