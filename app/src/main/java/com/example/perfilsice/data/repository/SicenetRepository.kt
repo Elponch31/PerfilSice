@@ -1,16 +1,6 @@
 package com.example.perfilsice.data.repository
 
-import com.example.perfilsice.data.network.SicenetSoapClient
-
-class SicenetRepository {
-
-    private val soapClient = SicenetSoapClient()
-
-    fun login(matricula: String, password: String): Boolean {
-        return soapClient.login(matricula, password)
-    }
-
-    fun getPerfilAcademico(): String {
-        return soapClient.getAlumnoAcademico()
-    }
+interface SicenetRepository {
+    suspend fun login(matricula: String, password: String): Boolean
+    suspend fun getPerfilAcademico(): String
 }

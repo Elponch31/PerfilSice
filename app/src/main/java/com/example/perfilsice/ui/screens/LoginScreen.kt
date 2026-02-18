@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.example.perfilsice.ui.viewmodel.LoginViewModel
 
 @Composable
-fun LoginScreen(viewModel: LoginViewModel) { // Recibimos el ViewModel por parámetro
+fun LoginScreen(viewModel: LoginViewModel) {
 
     var matricula by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
