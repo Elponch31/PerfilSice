@@ -1,17 +1,32 @@
 package com.example.perfilsice.data.repository
 
+import android.content.Context
 import android.util.Log
+import com.example.perfilsice.data.local.database.AppDatabase
+import com.example.perfilsice.data.local.entity.AlumnoEntity
 import com.example.perfilsice.data.network.RetrofitClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 
-class SicenetRepositoryImpl : SicenetRepository {
+class SicenetRepositoryImpl(context: Context) : SicenetRepository {
+
     private val api = RetrofitClient.apiService
+
+    private val dao = AppDatabase.getDatabase(context).alumnoDao()
+
     private var currentSessionUrl: String? = null
     private var sessionCookie: String? = null
 
     private val BASE_DOMAIN = "https://sicenet.surguanajuato.tecnm.mx"
     private val INITIAL_URL = "$BASE_DOMAIN/ws/wsalumnos.asmx"
+
+    override suspend fun getAlumnoDataLocal(matricula: String): AlumnoEntity? {
+        return dao.getAlumnoData(matricula)
+    }
+
+    override suspend fun saveAlumnoDataLocal(alumno: AlumnoEntity) {
+        dao.saveAlumnoData(alumno)
+    }
 
     override suspend fun login(matricula: String, password: String): Boolean {
         val soapXml = """
@@ -30,7 +45,6 @@ class SicenetRepositoryImpl : SicenetRepository {
         var currentUrl = INITIAL_URL
         var attemptCount = 0
 
-        // Lógica de "Perseguir el Redirect"
         while (attemptCount < 5) {
             attemptCount++
             try {
@@ -42,27 +56,24 @@ class SicenetRepositoryImpl : SicenetRepository {
                     body = requestBody
                 )
 
-                // Capturar Cookies si existen
                 val cookies = response.headers().values("Set-Cookie")
                 if (cookies.isNotEmpty()) {
                     sessionCookie = cookies.joinToString("; ") { it.split(";")[0] }
                 }
 
-                // Manejo manual de redirecciones (301, 302, 307)
                 if (response.code() in 300..399) {
                     val location = response.headers()["Location"]
                     if (location != null) {
                         currentUrl = if (location.startsWith("http")) location else "$BASE_DOMAIN$location"
-                        continue // Reintentamos con la nueva URL
+                        continue
                     }
                 }
 
                 if (response.isSuccessful && response.body() != null) {
                     val responseBody = response.body()!!
                     if (responseBody.contains("<accesoLoginResult>")) {
-                        // ¡Éxito! Guardamos la URL final que tiene la sesión
                         currentSessionUrl = currentUrl
-                        return !responseBody.contains("false") // Retorna true si no dice "false"
+                        return !responseBody.contains("false")
                     }
                 }
 
@@ -76,7 +87,6 @@ class SicenetRepositoryImpl : SicenetRepository {
 
     override suspend fun getPerfilAcademico(): String {
         val targetUrl = currentSessionUrl ?: return "Error: No hay sesión activa."
-
         val soapXml = """
             <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
               <soap:Body>
@@ -93,7 +103,6 @@ class SicenetRepositoryImpl : SicenetRepository {
                 soapAction = "\"http://tempuri.org/getAlumnoAcademicoWithLineamiento\"",
                 body = requestBody
             )
-
             if (response.isSuccessful) {
                 response.body() ?: "Error: Respuesta vacía"
             } else {

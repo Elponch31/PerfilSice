@@ -8,11 +8,8 @@ import com.example.perfilsice.data.repository.SicenetRepositoryImpl
 
 class FetchSicenetWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        val repository = SicenetRepositoryImpl()
+        val repository = SicenetRepositoryImpl(applicationContext)
         val funcion = inputData.getString("FUNCION") ?: "PERFIL"
-
-        // Simular o realizar login previo si es necesario para obtener la URL de sesión
-        // Aquí asumimos que el repositorio ya gestiona la sesión activa
 
         val resultado = when(funcion) {
             "PERFIL" -> repository.getPerfilAcademico()
@@ -33,6 +30,5 @@ class FetchSicenetWorker(context: Context, params: WorkerParameters) : Coroutine
         } else {
             Result.failure()
         }
-
     }
 }

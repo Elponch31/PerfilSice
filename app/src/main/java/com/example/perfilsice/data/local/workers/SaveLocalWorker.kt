@@ -3,22 +3,18 @@ package com.example.perfilsice.data.local.workers
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.perfilsice.data.local.database.AppDatabase
 import com.example.perfilsice.data.local.entity.AlumnoEntity
+import com.example.perfilsice.data.repository.SicenetRepositoryImpl
 
 class SaveLocalWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        // Datos de entrada provenientes del primer Worker (FetchSicenetWorker)
         val xml = inputData.getString("XML_RESULT") ?: return Result.failure()
         val funcion = inputData.getString("FUNCION") ?: return Result.failure()
-
-        // Es mejor recibir la matrícula desde el ViewModel a través del primer Worker
         val matricula = inputData.getString("MATRICULA") ?: "123456"
 
-        val dao = AppDatabase.getDatabase(applicationContext).alumnoDao()
+        val repository = SicenetRepositoryImpl(applicationContext)
 
-        // Buscar si ya existe el alumno para no sobrescribir otros datos
-        val entityExistente = dao.getAlumnoData(matricula) ?: AlumnoEntity(
+        val entityExistente = repository.getAlumnoDataLocal(matricula) ?: AlumnoEntity(
             matricula = matricula,
             perfilRaw = "",
             cargaAcademicaRaw = "",
@@ -36,7 +32,8 @@ class SaveLocalWorker(context: Context, params: WorkerParameters) : CoroutineWor
             else -> entityExistente
         }
 
-        dao.saveAlumnoData(nuevaEntity)
+        repository.saveAlumnoDataLocal(nuevaEntity)
+
         return Result.success()
     }
 }

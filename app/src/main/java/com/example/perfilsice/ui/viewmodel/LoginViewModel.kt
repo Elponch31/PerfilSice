@@ -13,7 +13,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.example.perfilsice.data.local.database.AppDatabase
 import com.example.perfilsice.data.local.entity.AlumnoEntity
 import com.example.perfilsice.data.local.workers.FetchSicenetWorker
 import com.example.perfilsice.data.local.workers.SaveLocalWorker
@@ -22,12 +21,9 @@ import com.example.perfilsice.data.repository.SicenetRepositoryImpl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.example.perfilsice.utils.XmlParser
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repository: SicenetRepository = SicenetRepositoryImpl()
-    private val alumnoDao = AppDatabase.getDatabase(application).alumnoDao()
+    private val repository: SicenetRepository = SicenetRepositoryImpl(application)
 
     var loginSuccess by mutableStateOf(false)
     var profileData by mutableStateOf("")
@@ -35,6 +31,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     var errorMessage by mutableStateOf("")
     var currentSection by mutableStateOf("PERFIL")
     var currentMatricula by mutableStateOf("")
+    var offlineMessage by mutableStateOf("") // Añadimos esto para separar el aviso de los datos
 
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getApplication<Application>()
@@ -56,14 +53,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 if (success) {
-                    // 1. Descargar todos los datos desde el servicio web
                     val perfilXml = withContext(Dispatchers.IO) { repository.getPerfilAcademico() }
                     val cargaXml = withContext(Dispatchers.IO) { repository.getCargaAcademica() }
                     val kardexXml = withContext(Dispatchers.IO) { repository.getKardex() }
                     val califUnidadXml = withContext(Dispatchers.IO) { repository.getCalificacionesUnidad() }
                     val califFinalXml = withContext(Dispatchers.IO) { repository.getCalificacionFinal() }
 
-                    // 2. Crear el objeto de entidad para Room
                     val alumno = AlumnoEntity(
                         matricula = matricula,
                         perfilRaw = perfilXml,
@@ -73,12 +68,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         califFinalRaw = califFinalXml
                     )
 
-                    // 3. Guardar en la base de datos local
+                    // Guardamos usando el REPOSITORIO
                     withContext(Dispatchers.IO) {
-                        alumnoDao.saveAlumnoData(alumno)
+                        repository.saveAlumnoDataLocal(alumno)
                     }
 
-                    // 4. Actualizar UI (puedes limpiar el XML para mostrar solo lo relevante)
                     profileData = perfilXml
                     loginSuccess = true
 
@@ -116,10 +110,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
         workManager.getWorkInfoByIdLiveData(fetchRequest.id).observeForever { workInfo ->
             if (workInfo?.state == WorkInfo.State.SUCCEEDED) {
-                // Obtenemos el XML que el FetchSicenetWorker puso en outputData
                 val xml = workInfo.outputData.getString("XML_RESULT")
                 if (xml != null) {
-                    this.profileData = xml // Esto refrescará la UI automáticamente
+                    this.profileData = xml
                 }
                 this.isLoading = false
             } else if (workInfo?.state == WorkInfo.State.FAILED) {
@@ -132,27 +125,28 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun cargarInformacion(matricula: String, funcion: String) {
         viewModelScope.launch {
             if (isNetworkAvailable()) {
-                // Caso con internet: disparar WorkManager para sincronizar
+                offlineMessage = ""
                 syncData(funcion)
             } else {
-                // Caso sin internet: consulta local en Room
+                // Consultamos localmente usando el REPOSITORIO
                 val localData = withContext(Dispatchers.IO) {
-                    alumnoDao.getAlumnoData(matricula)
+                    repository.getAlumnoDataLocal(matricula)
                 }
 
                 if (localData != null) {
                     val fecha = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
                         .format(java.util.Date(localData.lastSync))
 
-                    profileData = "Modo Offline - Última actualización: $fecha\n\n" +
-                            when(funcion) {
-                                "CARGA" -> localData.cargaAcademicaRaw
-                                "KARDEX" -> localData.kardexRaw
-                                "CALIF_UNI" -> localData.califUnidadRaw
-                                "CALIF_FINAL" -> localData.califFinalRaw
-                                else -> localData.perfilRaw
-                            }
-                    loginSuccess = true // Para permitir la navegación a la ProfileScreen
+                    offlineMessage = "Modo Offline - Última actualización: $fecha"
+
+                    profileData = when(funcion) {
+                        "CARGA" -> localData.cargaAcademicaRaw
+                        "KARDEX" -> localData.kardexRaw
+                        "CALIF_UNI" -> localData.califUnidadRaw
+                        "CALIF_FINAL" -> localData.califFinalRaw
+                        else -> localData.perfilRaw
+                    }
+                    loginSuccess = true
                 } else {
                     errorMessage = "No hay datos locales guardados y no tienes conexión a internet."
                 }
@@ -164,8 +158,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         currentSection = nuevaSeccion
 
         viewModelScope.launch {
+            // Consultamos localmente usando el REPOSITORIO
             val localData = withContext(Dispatchers.IO) {
-                alumnoDao.getAlumnoData(matricula)
+                repository.getAlumnoDataLocal(matricula)
             }
 
             if (localData != null) {
