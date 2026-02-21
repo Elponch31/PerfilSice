@@ -15,9 +15,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             PerfilSiceTheme {
                 val viewModel: LoginViewModel = viewModel()
-
                 if (viewModel.loginSuccess) {
-                    ProfileScreen(data = viewModel.profileData)
+                    ProfileScreen(viewModel = viewModel)
                 } else {
                     LoginScreen(viewModel = viewModel)
                 }

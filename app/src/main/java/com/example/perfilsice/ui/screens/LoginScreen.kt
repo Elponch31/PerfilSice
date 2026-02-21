@@ -59,7 +59,7 @@ fun LoginScreen(viewModel: LoginViewModel) {
             } else {
                 Button(
                     onClick = {
-                        viewModel.loginAndFetchProfile(matricula, password)
+                        viewModel.loginAndSyncData(matricula, password)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6CBF2A))
                 ) {

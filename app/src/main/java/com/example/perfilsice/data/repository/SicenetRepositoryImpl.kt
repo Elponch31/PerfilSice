@@ -6,10 +6,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 
 class SicenetRepositoryImpl : SicenetRepository {
-
     private val api = RetrofitClient.apiService
-
-    // Variables de estado para la sesión (igual que en tu código original)
     private var currentSessionUrl: String? = null
     private var sessionCookie: String? = null
 
@@ -105,5 +102,41 @@ class SicenetRepositoryImpl : SicenetRepository {
         } catch (e: Exception) {
             "Error Excepción: ${e.message}"
         }
+    }
+
+    override suspend fun getCargaAcademica(): String =
+        performSoapRequest("getCargaAcademicaByAlumno", """<getCargaAcademicaByAlumno xmlns="http://tempuri.org/" />""")
+
+    override suspend fun getKardex(): String =
+        performSoapRequest("getAllKardexConPromedioByAlumno", """
+        <getAllKardexConPromedioByAlumno xmlns="http://tempuri.org/">
+            <aluLineamiento>1</aluLineamiento>
+        </getAllKardexConPromedioByAlumno>
+    """.trimIndent())
+
+    override suspend fun getCalificacionesUnidad(): String =
+        performSoapRequest("getCalifUnidadesByAlumno", """<getCalifUnidadesByAlumno xmlns="http://tempuri.org/" />""")
+
+    override suspend fun getCalificacionFinal(): String =
+        performSoapRequest("getAllCalifFinalByAlumnos", """
+        <getAllCalifFinalByAlumnos xmlns="http://tempuri.org/">
+            <bytModEducativo>1</bytModEducativo>
+        </getAllCalifFinalByAlumnos>
+    """.trimIndent())
+
+    private suspend fun performSoapRequest(action: String, bodyContent: String): String {
+        val targetUrl = currentSessionUrl ?: return "Error: Sin sesión"
+        val soapXml = """
+        <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+          <soap:Body>
+            $bodyContent
+          </soap:Body>
+        </soap:Envelope>
+    """.trimIndent()
+
+        val requestBody = soapXml.toRequestBody("text/xml; charset=utf-8".toMediaType())
+        val response = api.makeSoapRequest(targetUrl, "\"http://tempuri.org/$action\"", requestBody)
+
+        return if (response.isSuccessful) response.body() ?: "" else "Error ${response.code()}"
     }
 }
