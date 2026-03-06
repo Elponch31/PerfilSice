@@ -1,6 +1,11 @@
 package com.example.perfilsice.ui.viewmodel
 
+import android.Manifest
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import androidx.annotation.RequiresPermission
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -31,14 +36,15 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     var errorMessage by mutableStateOf("")
     var currentSection by mutableStateOf("PERFIL")
     var currentMatricula by mutableStateOf("")
-    var offlineMessage by mutableStateOf("") // Añadimos esto para separar el aviso de los datos
+    var offlineMessage by mutableStateOf("")
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getApplication<Application>()
-            .getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     fun loginAndSyncData(matricula: String, password: String) {
@@ -53,41 +59,22 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 if (success) {
-                    val perfilXml = withContext(Dispatchers.IO) { repository.getPerfilAcademico() }
-                    val cargaXml = withContext(Dispatchers.IO) { repository.getCargaAcademica() }
-                    val kardexXml = withContext(Dispatchers.IO) { repository.getKardex() }
-                    val califUnidadXml = withContext(Dispatchers.IO) { repository.getCalificacionesUnidad() }
-                    val califFinalXml = withContext(Dispatchers.IO) { repository.getCalificacionFinal() }
-
-                    val alumno = AlumnoEntity(
-                        matricula = matricula,
-                        perfilRaw = perfilXml,
-                        cargaAcademicaRaw = cargaXml,
-                        kardexRaw = kardexXml,
-                        califUnidadRaw = califUnidadXml,
-                        califFinalRaw = califFinalXml
-                    )
-
-                    // Guardamos usando el REPOSITORIO
-                    withContext(Dispatchers.IO) {
-                        repository.saveAlumnoDataLocal(alumno)
-                    }
-
-                    profileData = perfilXml
                     loginSuccess = true
-
+                    syncData("PERFIL")
                 } else {
                     errorMessage = "Credenciales incorrectas o error de conexión"
+                    isLoading = false
                 }
             } catch (e: Exception) {
-                errorMessage = "Error en la sincronización: ${e.message}"
-            } finally {
+                errorMessage = "Error en el login: ${e.message}"
                 isLoading = false
             }
         }
     }
 
     fun syncData(funcion: String) {
+        isLoading = true
+        errorMessage = ""
         val workManager = WorkManager.getInstance(getApplication())
 
         val constraints = Constraints.Builder()
@@ -96,7 +83,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
         val fetchRequest = OneTimeWorkRequestBuilder<FetchSicenetWorker>()
             .setConstraints(constraints)
-            .setInputData(workDataOf("FUNCION" to funcion))
+            .setInputData(workDataOf("FUNCION" to funcion,
+                "MATRICULA" to currentMatricula ))
             .build()
 
         val saveRequest = OneTimeWorkRequestBuilder<SaveLocalWorker>()
@@ -124,20 +112,17 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cargarInformacion(matricula: String, funcion: String) {
         viewModelScope.launch {
+            profileData = ""
             if (isNetworkAvailable()) {
                 offlineMessage = ""
                 syncData(funcion)
             } else {
-                // Consultamos localmente usando el REPOSITORIO
                 val localData = withContext(Dispatchers.IO) {
                     repository.getAlumnoDataLocal(matricula)
                 }
 
                 if (localData != null) {
-                    val fecha = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
-                        .format(java.util.Date(localData.lastSync))
-
-                    offlineMessage = "Modo Offline - Última actualización: $fecha"
+                    offlineMessage = "Modo Offline"
 
                     profileData = when(funcion) {
                         "CARGA" -> localData.cargaAcademicaRaw
@@ -158,7 +143,6 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         currentSection = nuevaSeccion
 
         viewModelScope.launch {
-            // Consultamos localmente usando el REPOSITORIO
             val localData = withContext(Dispatchers.IO) {
                 repository.getAlumnoDataLocal(matricula)
             }

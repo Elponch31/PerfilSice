@@ -70,7 +70,8 @@ fun ProfileScreen(viewModel: LoginViewModel) {
                     label = { Text("Perfil Académico") },
                     selected = viewModel.currentSection == "PERFIL",
                     onClick = {
-                        viewModel.cambiarSeccion(viewModel.currentMatricula, "PERFIL") // <-- USAR cambiarSeccion
+                        viewModel.currentSection = "PERFIL"
+                        viewModel.cargarInformacion(viewModel.currentMatricula, "PERFIL")
                         scope.launch { drawerState.close() }
                     }
                 )
@@ -78,7 +79,8 @@ fun ProfileScreen(viewModel: LoginViewModel) {
                     label = { Text("Carga Académica") },
                     selected = viewModel.currentSection == "CARGA",
                     onClick = {
-                        viewModel.cambiarSeccion(viewModel.currentMatricula, "CARGA") // <-- USAR cambiarSeccion
+                        viewModel.currentSection = "CARGA"
+                        viewModel.cargarInformacion(viewModel.currentMatricula, "CARGA")
                         scope.launch { drawerState.close() }
                     }
                 )
@@ -86,7 +88,8 @@ fun ProfileScreen(viewModel: LoginViewModel) {
                     label = { Text("Kárdex") },
                     selected = viewModel.currentSection == "KARDEX",
                     onClick = {
-                        viewModel.cambiarSeccion(viewModel.currentMatricula, "KARDEX")
+                        viewModel.currentSection = "KARDEX"
+                        viewModel.cargarInformacion(viewModel.currentMatricula, "KARDEX")
                         scope.launch { drawerState.close() }
                     }
                 )
@@ -95,7 +98,8 @@ fun ProfileScreen(viewModel: LoginViewModel) {
                     label = { Text("Calificaciones por Unidad") },
                     selected = viewModel.currentSection == "CALIF_UNI",
                     onClick = {
-                        viewModel.cambiarSeccion(viewModel.currentMatricula, "CALIF_UNI")
+                        viewModel.currentSection = "CALIF_UNI"
+                        viewModel.cargarInformacion(viewModel.currentMatricula, "CALIF_UNI")
                         scope.launch { drawerState.close() }
                     }
                 )
@@ -104,7 +108,8 @@ fun ProfileScreen(viewModel: LoginViewModel) {
                     label = { Text("Calificación Final") },
                     selected = viewModel.currentSection == "CALIF_FINAL",
                     onClick = {
-                        viewModel.cambiarSeccion(viewModel.currentMatricula, "CALIF_FINAL")
+                        viewModel.currentSection = "CALIF_FINAL"
+                        viewModel.cargarInformacion(viewModel.currentMatricula, "CALIF_FINAL")
                         scope.launch { drawerState.close() }
                     }
                 )
@@ -132,6 +137,16 @@ fun ProfileScreen(viewModel: LoginViewModel) {
 
 @Composable
 fun DataContentView(viewModel: LoginViewModel) {
+    if (viewModel.isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = Color(0xFF6CBF2A)) // Ruedita verde
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Sincronizando datos...", color = Color.Gray)
+            }
+        }
+        return
+    }
     val tagABuscar = when (viewModel.currentSection) {
         "PERFIL" -> "getAlumnoAcademicoWithLineamientoResult"
         "CARGA" -> "getCargaAcademicaByAlumnoResult"
@@ -140,11 +155,35 @@ fun DataContentView(viewModel: LoginViewModel) {
         "CALIF_FINAL" -> "getAllCalifFinalByAlumnosResult"
         else -> ""
     }
+
     val contenidoLimpio = remember(viewModel.profileData, viewModel.currentSection) {
-        XmlParser.extraerContenidoXml(viewModel.profileData, tagABuscar)
+        if (viewModel.profileData.contains("<?xml") || viewModel.profileData.contains("<soap:")) {
+            XmlParser.extraerContenidoXml(viewModel.profileData, tagABuscar)
+        } else {
+            viewModel.profileData
+        }
     }
 
     Column(modifier = Modifier.padding(16.dp).fillMaxSize()) {
+
+        if (viewModel.errorMessage.isNotEmpty()) {
+            Text(
+                text = viewModel.errorMessage,
+                color = Color.Red,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        if (viewModel.offlineMessage.isNotEmpty()) {
+            Text(
+                text = viewModel.offlineMessage,
+                color = Color(0xFFE65100), // Naranja oscuro para destacar
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
         when (viewModel.currentSection) {
             "PERFIL" -> PerfilAcademicoView(jsonString = contenidoLimpio)
             "CARGA" -> CargaAcademicaView(jsonString = contenidoLimpio)
@@ -171,7 +210,7 @@ fun CargaAcademicaView(jsonString: String) {
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp) // Espacio entre tarjetas
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(materias) { materia ->
                 Card(
@@ -184,7 +223,7 @@ fun CargaAcademicaView(jsonString: String) {
                             text = materia.materia,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1B396A) // Un tono azul institucional
+                            color = Color(0xFF1B396A)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -291,7 +330,7 @@ fun KardexView(jsonString: String) {
                         text = "Semestre $semestre",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6CBF2A), // El verde de tu app
+                        color = Color(0xFF6CBF2A),
                         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
                     )
                 }
@@ -437,7 +476,7 @@ fun CalificacionFinalView(jsonString: String) {
                             }
                         }
 
-                        // Lógica de colores para la calificación
+
                         val califInt = materia.calificacion.toIntOrNull() ?: 0
                         val isAprobado = califInt >= 70 || materia.calificacion == "AC"
 

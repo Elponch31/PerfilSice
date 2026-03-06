@@ -89,28 +89,61 @@ data class MateriaKardex(
 fun parsearKardex(jsonString: String): List<MateriaKardex> {
     val lista = mutableListOf<MateriaKardex>()
     try {
-        val jsonObject = org.json.JSONObject(jsonString)
+        // 1. EXTRACCIÓN AGRESIVA:
+        // Buscamos como un láser exactamente dónde abre la primera llave '{' o '['
+        // y dónde cierra la última '}' o ']', ignorando cualquier basura invisible antes o después.
+        val startIndex = jsonString.indexOfFirst { it == '{' || it == '[' }
+        val endIndex = jsonString.indexOfLast { it == '}' || it == ']' }
 
-        val jsonArray = jsonObject.getJSONArray("lstKardex")
+        // Si por algún motivo no hay formato JSON, abortamos limpiamente
+        if (startIndex == -1 || endIndex == -1) return lista
 
+        val pureJson = jsonString.substring(startIndex, endIndex + 1)
+
+        // 2. Leer el JSON purificado
+        val jsonArray = if (pureJson.startsWith("[")) {
+            org.json.JSONArray(pureJson)
+        } else {
+            val jsonObject = org.json.JSONObject(pureJson)
+
+            // 3. BÚSQUEDA A CIEGAS: En lugar de adivinar si Sicenet le puso "IstKardex" o "lstKardex",
+            // le decimos al código que extraiga el PRIMER arreglo de datos que encuentre adentro.
+            var arrayEncontrado: org.json.JSONArray? = null
+            val keys = jsonObject.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val posibleArreglo = jsonObject.optJSONArray(key)
+                if (posibleArreglo != null) {
+                    arrayEncontrado = posibleArreglo
+                    break // Encontramos la lista de materias, dejamos de buscar
+                }
+            }
+            arrayEncontrado ?: org.json.JSONArray()
+        }
+
+        // 4. Llenamos las tarjetas, protegiendo cada materia con su propio bloque try-catch
         for (i in 0 until jsonArray.length()) {
-            val item = jsonArray.getJSONObject(i)
-            lista.add(
-                MateriaKardex(
-                    materia = item.optString("Materia", "Desconocida"),
-                    calificacion = item.optString("Calif", "0"),
-                    semestre = item.optString("S1", "0"), // "S1" contiene el semestre
-                    creditos = item.optString("Cdts", "0"),
-                    tipoEvaluacion = item.optString("Acred", "")
+            try {
+                val item = jsonArray.getJSONObject(i)
+                lista.add(
+                    MateriaKardex(
+                        materia = item.optString("Materia", "Desconocida"),
+                        calificacion = item.optString("Calif", "0"),
+                        semestre = item.optString("S1", "0"),
+                        creditos = item.optString("Cdts", "0"),
+                        tipoEvaluacion = item.optString("Acred", "")
+                    )
                 )
-            )
+            } catch (e: Exception) {
+                // Si una sola materia viene corrupta, la ignoramos pero SALVAMOS el resto del semestre
+            }
         }
     } catch (e: Exception) {
+        // Si hay un error profundo, lo imprimimos en consola pero no cerramos la app
         e.printStackTrace()
     }
     return lista
 }
-
 
 // MODELO PARA CALIFICACION POR UNIDAD
 data class CalificacionUnidad(

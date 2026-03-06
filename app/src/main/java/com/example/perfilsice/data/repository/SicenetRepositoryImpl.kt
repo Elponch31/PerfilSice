@@ -14,8 +14,10 @@ class SicenetRepositoryImpl(context: Context) : SicenetRepository {
 
     private val dao = AppDatabase.getDatabase(context).alumnoDao()
 
-    private var currentSessionUrl: String? = null
-    private var sessionCookie: String? = null
+    companion object {
+        var currentSessionUrl: String? = null
+        var sessionCookie: String? = null
+    }
 
     private val BASE_DOMAIN = "https://sicenet.surguanajuato.tecnm.mx"
     private val INITIAL_URL = "$BASE_DOMAIN/ws/wsalumnos.asmx"
