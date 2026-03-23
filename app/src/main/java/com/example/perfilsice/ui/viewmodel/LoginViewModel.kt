@@ -138,25 +138,5 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
-    fun cambiarSeccion(matricula: String, nuevaSeccion: String) {
-        currentSection = nuevaSeccion
-
-        viewModelScope.launch {
-            val localData = withContext(Dispatchers.IO) {
-                repository.getAlumnoDataLocal(matricula)
-            }
-
-            if (localData != null) {
-                profileData = when(nuevaSeccion) {
-                    "PERFIL" -> localData.perfilRaw
-                    "CARGA" -> localData.cargaAcademicaRaw
-                    "KARDEX" -> localData.kardexRaw
-                    "CALIF_UNI" -> localData.califUnidadRaw
-                    "CALIF_FINAL" -> localData.califFinalRaw
-                    else -> ""
-                }
-            }
-        }
-    }
+    
 }

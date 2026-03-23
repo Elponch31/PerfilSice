@@ -2,7 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <permission android:name="com.example.perfilsice.READ_SICE" android:protectionLevel="normal" />
+    <permission android:name="com.example.perfilsice.WRITE_SICE" android:protectionLevel="normal" />
+
     <application
+
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -22,6 +27,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <provider
+            android:name=".data.local.provider.SicenetProvider"
+            android:authorities="com.example.perfilsice.provider"
+            android:exported="true"
+            android:readPermission="com.example.perfilsice.READ_SICE"
+            android:writePermission="com.example.perfilsice.WRITE_SICE" />
+
     </application>
 
 </manifest>
