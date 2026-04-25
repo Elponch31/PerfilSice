@@ -24,18 +24,8 @@ class SicenetProvider : ContentProvider() {
         return true
     }
 
-    override fun query(
-        uri: Uri, projection: Array<String>?, selection: String?,
-        selectionArgs: Array<String>?, sortOrder: String?
-    ): Cursor? {
-        val context = context ?: return null
-        val dao = AppDatabase.getDatabase(context).alumnoDao()
-
-        return when (uriMatcher.match(uri)) {
-            ALUMNOS -> dao.getAllAlumnosCursor() // Devuelve Kárdex y Carga
-            else -> throw IllegalArgumentException("URI desconocida: $uri")
-        }
-    }
+    
+    
 
     override fun update(
         uri: Uri, values: ContentValues?, selection: String?,
